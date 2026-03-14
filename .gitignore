@@ -1,0 +1,7 @@
+.env
+bharatagent.db
+venv/
+__pycache__/
+*.pyc
+*.pyo
+check_models.py

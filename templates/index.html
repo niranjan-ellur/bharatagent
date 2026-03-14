@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BharatAgent — Agentic Commerce OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  * { font-family: 'Inter', sans-serif; }
+  body { background: #0a0f1e; color: #e2e8f0; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; }
+  .card-glow { background: #111827; border: 1px solid #6366f1; border-radius: 12px; box-shadow: 0 0 20px rgba(99,102,241,0.15); }
+  .badge-success { background: #052e16; color: #22c55e; border: 1px solid #166534; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-failed  { background: #450a0a; color: #ef4444; border: 1px solid #7f1d1d; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-pending { background: #1c1917; color: #f59e0b; border: 1px solid #78350f; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-recovered { background: #0c1a2e; color: #60a5fa; border: 1px solid #1e3a5f; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-refunded  { background: #2e1065; color: #c084fc; border: 1px solid #581c87; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .tab-active { background: #6366f1; color: white; }
+  .tab-inactive { background: #1f2937; color: #9ca3af; }
+  .tab-inactive:hover { background: #374151; color: #e2e8f0; }
+  .persona-active { border: 2px solid #6366f1; background: #1e1b4b; }
+  .persona-inactive { border: 2px solid #1f2937; background: #111827; }
+  .whatsapp-bg { background: #0b141a; }
+  .msg-user  { background: #005c4b; border-radius: 12px 12px 0 12px; max-width: 80%; }
+  .msg-agent { background: #1f2937; border-radius: 12px 12px 12px 0; max-width: 85%; }
+  .stock-critical { background: #450a0a; color: #ef4444; }
+  .stock-low      { background: #1c1917; color: #f59e0b; }
+  .stock-good     { background: #052e16; color: #22c55e; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0a0f1e; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+  .pulse-green { animation: pulseGreen 2s infinite; }
+  @keyframes pulseGreen { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.4)} 50%{box-shadow:0 0 0 6px rgba(34,197,94,0)} }
+  .typing span { display:inline-block; width:6px; height:6px; border-radius:50%; background:#9ca3af; animation:typing 1.2s infinite; }
+  .typing span:nth-child(2){animation-delay:0.2s}
+  .typing span:nth-child(3){animation-delay:0.4s}
+  @keyframes typing{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .flash { animation: flashBorder 0.5s ease; }
+  @keyframes flashBorder{0%,100%{border-color:#1f2937}50%{border-color:#6366f1}}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- HEADER -->
+<div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/20 border-b border-indigo-900/50 px-6 py-4">
+  <div class="max-w-screen-2xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="text-3xl">🤖</div>
+      <div>
+        <h1 class="text-xl font-bold text-white">BharatAgent</h1>
+        <p class="text-xs text-indigo-400">Agentic Commerce OS · Powered by Pine Labs × Gemini 2.5 Flash</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-green-900/30 border border-green-700/50 rounded-full px-3 py-1">
+        <div class="w-2 h-2 rounded-full bg-green-400 pulse-green"></div>
+        <span class="text-green-400 text-xs font-medium">Agent Active</span>
+      </div>
+      <button onclick="runAgent()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">⚡ Run Agent Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- PERSONA SWITCHER -->
+<div class="max-w-screen-2xl mx-auto px-6 py-4">
+  <div class="flex gap-3 flex-wrap" id="persona-switcher"></div>
+</div>
+
+<!-- STATS ROW -->
+<div class="max-w-screen-2xl mx-auto px-6 pb-4 grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-row">
+  <div class="card p-4"><div class="text-xs text-gray-400 mb-1">Monthly Spend</div><div class="text-2xl font-bold text-white" id="stat-spend">₹0</div><div class="text-xs text-gray-500 mt-1" id="stat-budget">/ ₹0 budget</div><div class="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden"><div id="spend-bar" class="h-full bg-indigo-500 rounded-full transition-all" style="width:0%"></div></div></div>
+  <div class="card p-4"><div class="text-xs text-gray-400 mb-1">Transactions</div><div class="text-2xl font-bold text-white" id="stat-txns">0</div><div class="text-xs text-green-400 mt-1" id="stat-success">0% success rate</div></div>
+  <div class="card p-4"><div class="text-xs text-gray-400 mb-1">Savings (Blocks)</div><div class="text-2xl font-bold text-green-400" id="stat-savings">₹0</div><div class="text-xs text-gray-500 mt-1">From price spikes</div></div>
+  <div class="card p-4"><div class="text-xs text-gray-400 mb-1">Auto-Reorders</div><div class="text-2xl font-bold text-yellow-400" id="stat-reorders">0</div><div class="text-xs text-gray-500 mt-1">This month</div><div id="last-updated" class="text-xs text-gray-600 mt-1">–</div></div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="max-w-screen-2xl mx-auto px-6 pb-6 grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+  <!-- LEFT — WhatsApp Chat -->
+  <div class="lg:col-span-2 whatsapp-bg rounded-xl overflow-hidden flex flex-col" style="height:680px;border:1px solid #1f2937">
+    <!-- WA Header -->
+    <div style="background:#1f2937" class="px-4 py-3 flex items-center gap-3">
+      <div class="text-2xl" id="wa-avatar">👨‍⚕️</div>
+      <div>
+        <div class="font-semibold text-white text-sm" id="wa-name">Suresh Medical Store</div>
+        <div class="text-xs text-green-400">🤖 BharatAgent · Always active</div>
+      </div>
+      <div class="ml-auto">
+        <button onclick="toggleVoice()" id="voice-btn" title="Voice input" class="text-gray-400 hover:text-white transition text-lg">🎤</button>
+      </div>
+    </div>
+    <!-- Messages -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+    <!-- Typing indicator -->
+    <div id="typing-indicator" class="hidden px-4 pb-2">
+      <div class="msg-agent inline-block px-3 py-2">
+        <div class="typing"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <!-- Input -->
+    <div style="background:#1f2937" class="px-3 py-3 flex gap-2">
+      <input id="chat-input" type="text" placeholder="Type a message..." class="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 text-sm outline-none border border-gray-600 focus:border-indigo-500" onkeydown="if(event.key==='Enter')sendMessage()"/>
+      <button onclick="sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full w-9 h-9 flex items-center justify-center transition text-sm font-bold">→</button>
+    </div>
+    <!-- Voice status -->
+    <div id="voice-status" class="hidden text-center text-xs text-red-400 pb-2 animate-pulse">🔴 Listening... speak now</div>
+  </div>
+
+  <!-- RIGHT — Tabs -->
+  <div class="lg:col-span-3 flex flex-col gap-4">
+
+    <!-- Tab Buttons -->
+    <div class="flex gap-2 flex-wrap">
+      <button onclick="showTab('payments')" id="tab-payments" class="tab-active text-sm font-semibold px-4 py-2 rounded-lg transition">💳 Payments</button>
+      <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-inactive text-sm font-semibold px-4 py-2 rounded-lg transition">📊 Dashboard</button>
+      <button onclick="showTab('reconcile')" id="tab-reconcile" class="tab-inactive text-sm font-semibold px-4 py-2 rounded-lg transition">🔁 Reconciliation</button>
+      <button onclick="showTab('products')" id="tab-products" class="tab-inactive text-sm font-semibold px-4 py-2 rounded-lg transition">📦 Products</button>
+    </div>
+
+    <!-- PAYMENTS TAB -->
+    <div id="tab-content-payments" style="max-height:580px;overflow-y:auto">
+      <!-- Routing Explainer -->
+      <div class="card p-4 mb-4">
+        <div class="text-xs font-semibold text-indigo-400 mb-3">🧠 INTELLIGENT PAYMENT ROUTING (Track 1)</div>
+        <div id="routing-explainer" class="space-y-2 text-xs text-gray-400">Loading routing insights...</div>
+      </div>
+      <!-- Transactions -->
+      <div class="card p-4">
+        <div class="flex justify-between items-center mb-3">
+          <div class="text-xs font-semibold text-gray-400">💳 LIVE TRANSACTIONS · Pine Labs</div>
+          <div class="flex gap-2">
+            <button onclick="triggerRetryDemo()" class="text-xs bg-yellow-600/20 border border-yellow-600/50 text-yellow-400 px-2 py-1 rounded hover:bg-yellow-600/30 transition">🔄 Retry Demo</button>
+            <button onclick="triggerSpikeDemo()" class="text-xs bg-red-600/20 border border-red-600/50 text-red-400 px-2 py-1 rounded hover:bg-red-600/30 transition">💥 Spike Demo</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead><tr class="text-gray-500 border-b border-gray-700">
+              <th class="text-left py-2">Amount</th>
+              <th class="text-left py-2">Method</th>
+              <th class="text-left py-2">Issuer/BIN</th>
+              <th class="text-left py-2">Pine Labs Ref</th>
+              <th class="text-left py-2">Status</th>
+              <th class="text-left py-2">Action</th>
+            </tr></thead>
+            <tbody id="transactions-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-content-dashboard" class="hidden" style="max-height:580px;overflow-y:auto">
+      <!-- NL Query -->
+      <div class="card-glow p-4 mb-4">
+        <div class="text-xs font-semibold text-indigo-400 mb-2">🤖 AGENTIC DASHBOARD — Ask Anything (Track 7)</div>
+        <div class="flex gap-2">
+          <input id="analytics-query" type="text" placeholder="e.g. Why did my approval rate drop? What's my best payment method?" class="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm outline-none border border-gray-600 focus:border-indigo-500"/>
+          <button onclick="runAnalytics()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Ask →</button>
+        </div>
+        <div id="analytics-insight" class="mt-3 text-sm text-indigo-200 hidden bg-indigo-900/30 border border-indigo-700/50 rounded-lg p-3 leading-relaxed"></div>
+      </div>
+      <!-- Charts -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card p-4"><div class="text-xs text-gray-400 mb-3">📈 Revenue (Last 7 Days)</div><canvas id="revenue-chart" height="160"></canvas></div>
+        <div class="card p-4"><div class="text-xs text-gray-400 mb-3">💳 Payment Method Split</div><canvas id="method-chart" height="160"></canvas></div>
+      </div>
+      <div class="card p-4"><div class="text-xs text-gray-400 mb-3">✅ Success Rate Trend</div><canvas id="success-chart" height="100"></canvas></div>
+    </div>
+
+    <!-- RECONCILIATION TAB -->
+    <div id="tab-content-reconcile" class="hidden" style="max-height:580px;overflow-y:auto">
+      <div class="card p-4 mb-4">
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-xs font-semibold text-gray-400">🔁 SMART RECONCILIATION (Track 8)</div>
+          <button onclick="runReconciliation()" class="bg-purple-600/20 border border-purple-500/50 text-purple-400 text-xs px-3 py-1.5 rounded-lg hover:bg-purple-600/30 transition font-semibold">▶ Run Reconciliation</button>
+        </div>
+        <div id="recon-results" class="space-y-3">
+          <div class="text-gray-500 text-sm text-center py-4">Click "Run Reconciliation" to start</div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs font-semibold text-gray-400 mb-3">🔍 ANOMALY DETECTION</div>
+        <div id="anomaly-results" class="space-y-2 text-sm text-gray-400">Reconciliation will detect anomalies automatically</div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS TAB -->
+    <div id="tab-content-products" class="hidden" style="max-height:580px;overflow-y:auto">
+      <div class="card p-4">
+        <div class="flex justify-between items-center mb-3">
+          <div class="text-xs font-semibold text-gray-400">📦 INVENTORY & AUTO-REORDER (Track 5)</div>
+          <button onclick="runAgent()" class="text-xs bg-green-600/20 border border-green-600/50 text-green-400 px-2 py-1 rounded hover:bg-green-600/30 transition">🤖 Run Agent Check</button>
+        </div>
+        <div id="products-table" class="space-y-2"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- AGENT ACTIVITY FEED -->
+<div class="max-w-screen-2xl mx-auto px-6 pb-4">
+  <div class="card p-4" id="agent-feed-card">
+    <div class="text-xs font-semibold text-gray-400 mb-3">⚡ LIVE AGENT ACTIVITY FEED</div>
+    <div id="agent-logs" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2"></div>
+  </div>
+</div>
+
+<!-- DEMO CONTROLS -->
+<div class="max-w-screen-2xl mx-auto px-6 pb-8">
+  <div class="bg-gray-900/50 border border-gray-700/50 rounded-xl p-4">
+    <div class="text-xs text-gray-500 mb-3 font-semibold">🎮 DEMO CONTROLS — Hackathon Presentation</div>
+    <div class="flex flex-wrap gap-2">
+      <button onclick="runAgent()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">⚡ Run Agent</button>
+      <button onclick="triggerSpikeDemo()" class="bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">💥 Price Spike</button>
+      <button onclick="triggerRetryDemo()" class="bg-yellow-600/80 hover:bg-yellow-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">🔄 Retry Demo</button>
+      <button onclick="runReconciliation()" class="bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">📋 Reconcile</button>
+      <button onclick="resetDemo()" class="bg-gray-600 hover:bg-gray-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">🔁 Reset Demo</button>
+      <div class="flex-1"></div>
+      <span class="text-xs text-gray-600 self-center">All 8 Pine Labs tracks covered · BharatAgent v1.0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────
+let activePersonaId = 1;
+let personas = [];
+let dashboardData = {};
+let revenueChart, methodChart, successChart;
+let recognition = null;
+
+// ─── INIT ─────────────────────────────────────────────
+async function init() {
+  await loadPersonas();
+  await loadDashboard(activePersonaId);
+  setInterval(autoRefresh, 10000);
+}
+
+async function loadPersonas() {
+  const res = await fetch('/api/personas');
+  personas  = await res.json();
+  const container = document.getElementById('persona-switcher');
+  container.innerHTML = personas.map(p => `
+    <button onclick="switchPersona(${p.id})" id="persona-btn-${p.id}"
+      class="persona-${p.id === activePersonaId ? 'active' : 'inactive'} rounded-xl px-4 py-2 flex items-center gap-2 transition cursor-pointer">
+      <span class="text-2xl">${p.avatar_emoji}</span>
+      <div class="text-left">
+        <div class="text-sm font-semibold text-white">${p.name}</div>
+        <div class="text-xs text-gray-400">${p.business_name}</div>
+      </div>
+    </button>
+  `).join('');
+}
+
+async function switchPersona(id) {
+  activePersonaId = id;
+  personas.forEach(p => {
+    const btn = document.getElementById(`persona-btn-${p.id}`);
+    btn.className = btn.className.replace(/persona-(active|inactive)/g,
+      `persona-${p.id === id ? 'active' : 'inactive'}`);
+  });
+  await loadDashboard(id);
+}
+
+async function loadDashboard(id) {
+  const res = await fetch(`/api/dashboard/${id}`);
+  dashboardData = await res.json();
+  renderStats();
+  renderChat();
+  renderTransactions();
+  renderProducts();
+  renderAgentLogs();
+  renderCharts();
+  renderRoutingExplainer();
+
+  const p = dashboardData.persona;
+  document.getElementById('wa-avatar').textContent = p.avatar_emoji;
+  document.getElementById('wa-name').textContent   = p.business_name;
+}
+
+// ─── STATS ────────────────────────────────────────────
+function renderStats() {
+  const s = dashboardData.stats;
+  document.getElementById('stat-spend').textContent   = `₹${s.monthly_spend.toLocaleString('en-IN')}`;
+  document.getElementById('stat-budget').textContent  = `/ ₹${s.monthly_budget.toLocaleString('en-IN')} budget`;
+  document.getElementById('stat-txns').textContent    = s.total_txns;
+  document.getElementById('stat-success').textContent = `${s.success_rate}% success rate`;
+  document.getElementById('stat-savings').textContent = `₹${s.savings.toLocaleString('en-IN')}`;
+  document.getElementById('stat-reorders').textContent= s.auto_reorders;
+  document.getElementById('last-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+  const pct = Math.min((s.monthly_spend / s.monthly_budget) * 100, 100);
+  document.getElementById('spend-bar').style.width = pct + '%';
+  document.getElementById('spend-bar').className =
+    `h-full rounded-full transition-all ${pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-yellow-500' : 'bg-indigo-500'}`;
+}
+
+// ─── CHAT ─────────────────────────────────────────────
+function renderChat() {
+  const msgs    = dashboardData.chat_messages || [];
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = msgs.map(m => {
+    const isUser = m.sender === 'user';
+    return `
+      <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+        <div class="${isUser ? 'msg-user' : 'msg-agent'} px-3 py-2 text-sm text-white leading-relaxed">
+          <div style="white-space:pre-wrap">${m.message}</div>
+          <div class="text-right text-xs text-gray-400 mt-1">${m.time}</div>
+        </div>
+      </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+  const input   = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  input.value = '';
+  // Show user message immediately
+  const container = document.getElementById('chat-messages');
+  container.innerHTML += `
+    <div class="flex justify-end">
+      <div class="msg-user px-3 py-2 text-sm text-white">
+        <div>${message}</div>
+        <div class="text-right text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`;
+  container.scrollTop = container.scrollHeight;
+
+  // Show typing indicator
+  document.getElementById('typing-indicator').classList.remove('hidden');
+
+  try {
+    const res  = await fetch(`/api/chat/${activePersonaId}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message})
+    });
+    const data = await res.json();
+
+    document.getElementById('typing-indicator').classList.add('hidden');
+
+    container.innerHTML += `
+      <div class="flex justify-start">
+        <div class="msg-agent px-3 py-2 text-sm text-white leading-relaxed" style="max-width:85%">
+          <div style="white-space:pre-wrap">${data.response || 'No response'}</div>
+          <div class="text-right text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`;
+    container.scrollTop = container.scrollHeight;
+
+    await loadDashboard(activePersonaId);
+  } catch(e) {
+    document.getElementById('typing-indicator').classList.add('hidden');
+    console.error(e);
+  }
+}
+
+// ─── TRANSACTIONS ─────────────────────────────────────
+function renderTransactions() {
+  const txns = dashboardData.transactions || [];
+  const tbody = document.getElementById('transactions-table');
+  tbody.innerHTML = txns.map(t => `
+    <tr class="border-b border-gray-800 hover:bg-gray-800/30">
+      <td class="py-2 text-white font-semibold">₹${t.amount.toLocaleString('en-IN')}</td>
+      <td class="py-2"><span class="text-indigo-300">${t.method}</span></td>
+      <td class="py-2 text-gray-400 text-xs">${t.issuer || '–'}<br/>${t.bin || ''}</td>
+      <td class="py-2 text-yellow-400 font-mono text-xs">${t.pine_ref}</td>
+      <td class="py-2"><span class="badge-${t.status === 'success' ? 'success' : t.status === 'failed' || t.status === 'failed_final' ? 'failed' : t.status === 'recovered' ? 'recovered' : t.status === 'refunded' ? 'refunded' : 'pending'}">${t.status}${t.retry_count > 0 ? ` (retry ${t.retry_count})` : ''}</span></td>
+      <td class="py-2">
+        ${t.status === 'failed' ? `<button onclick="retryPayment(${t.id})" class="text-xs bg-yellow-600/20 border border-yellow-600/50 text-yellow-400 px-2 py-1 rounded hover:bg-yellow-600/30">🔄 Retry</button>` : ''}
+        ${t.status === 'success' ? `<button onclick="refundPayment(${t.id})" class="text-xs bg-purple-600/20 border border-purple-600/50 text-purple-400 px-2 py-1 rounded hover:bg-purple-600/30">↩ Refund</button>` : ''}
+        ${t.payment_link ? `<a href="${t.payment_link}" target="_blank" class="text-xs text-blue-400 underline ml-1">Link</a>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function renderRoutingExplainer() {
+  const txns = (dashboardData.transactions || []).slice(0, 4);
+  const el   = document.getElementById('routing-explainer');
+  if (!txns.length) { el.innerHTML = '<div class="text-gray-500">No transactions yet — run agent to see routing logic</div>'; return; }
+  el.innerHTML = txns.map(t => {
+    let reason = '';
+    if (t.amount < 100)       reason = 'Amount < ₹100 → UPI optimal';
+    else if (t.amount <= 500)  reason = 'Amount ₹100-500 → Card selected';
+    else if (t.amount <= 2000) reason = 'Amount ₹500-2000 → Card with rewards';
+    else if (t.amount <= 10000)reason = 'High value → EMI to reduce burden';
+    else                       reason = 'Recurring high value → Mandate';
+    if (t.issuer === 'Axis Bank') reason = 'Axis Bank detected → UPI (avoid 2-4 PM failures)';
+    return `<div class="flex items-center gap-2 bg-gray-800/50 rounded-lg px-3 py-2">
+      <span class="text-yellow-400 font-mono font-bold">₹${t.amount.toLocaleString('en-IN')}</span>
+      <span class="text-gray-500">→</span>
+      <span class="text-indigo-300 font-semibold">${t.method}</span>
+      <span class="text-gray-500">·</span>
+      <span class="text-gray-400">${reason}</span>
+      <span class="ml-auto text-xs font-mono text-yellow-500">${t.pine_ref}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── PRODUCTS ─────────────────────────────────────────
+function renderProducts() {
+  const products = dashboardData.products || [];
+  const container = document.getElementById('products-table');
+  if (!products.length) { container.innerHTML = '<div class="text-gray-500 text-sm py-4 text-center">No products for this persona</div>'; return; }
+  container.innerHTML = products.map(p => `
+    <div class="flex items-center justify-between bg-gray-800/30 rounded-lg px-4 py-3">
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-white">${p.name}</div>
+        <div class="text-xs text-gray-400">${p.category} · ₹${p.price} · Supplier: ${p.supplier} @ ₹${p.supplier_price}</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-center">
+          <div class="text-xs text-gray-500">Stock</div>
+          <span class="text-xs px-2 py-0.5 rounded font-semibold stock-${p.status}">${p.stock} units</span>
+        </div>
+        <div class="text-center">
+          <div class="text-xs text-gray-500">Auto</div>
+          <button onclick="toggleAuto(${p.id})" class="text-xs px-2 py-0.5 rounded font-semibold ${p.auto_reorder ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-gray-700 text-gray-400 border border-gray-600'}">
+            ${p.auto_reorder ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <button onclick="triggerSpike(${p.id})" class="text-xs bg-red-600/20 text-red-400 border border-red-700/50 px-2 py-1 rounded hover:bg-red-600/30 transition">💥 Spike</button>
+      </div>
+    </div>`).join('');
+}
+
+// ─── AGENT LOGS ───────────────────────────────────────
+function renderAgentLogs() {
+  const logs = dashboardData.agent_logs || [];
+  const container = document.getElementById('agent-logs');
+  if (!logs.length) { container.innerHTML = '<div class="text-gray-500 text-sm col-span-4">No agent activity yet. Click ⚡ Run Agent Now!</div>'; return; }
+  const icons = {payment:'💳', retry:'🔄', reorder:'📦', reconcile:'🔁', insight:'🤖', spike:'⚠️', refund:'↩', default:'⚡'};
+  container.innerHTML = logs.map(l => `
+    <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg px-3 py-2">
+      <div class="flex items-start gap-2">
+        <span class="text-lg">${icons[l.event_type] || icons.default}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-gray-300 leading-relaxed">${l.message}</div>
+          <div class="text-xs text-gray-500 mt-1">${l.time}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── CHARTS ───────────────────────────────────────────
+function renderCharts() {
+  const cd = dashboardData.chart_data || {};
+  const chartDefaults = { responsive: true, plugins: { legend: { labels: { color: '#9ca3af', font: { size: 11 } } } } };
+
+  // Revenue chart
+  if (revenueChart) revenueChart.destroy();
+  const rCtx = document.getElementById('revenue-chart');
+  if (rCtx) {
+    revenueChart = new Chart(rCtx, {
+      type: 'bar',
+      data: { labels: cd.labels || [], datasets: [{ label: 'Revenue ₹', data: cd.revenue || [], backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 4 }] },
+      options: { ...chartDefaults, scales: { x: { ticks: { color: '#6b7280' } }, y: { ticks: { color: '#6b7280', callback: v => '₹' + v.toLocaleString('en-IN') } } } }
+    });
+  }
+
+  // Method doughnut
+  if (methodChart) methodChart.destroy();
+  const mCtx = document.getElementById('method-chart');
+  if (mCtx) {
+    const methods = cd.methods || {};
+    methodChart = new Chart(mCtx, {
+      type: 'doughnut',
+      data: { labels: Object.keys(methods), datasets: [{ data: Object.values(methods), backgroundColor: ['#6366f1','#22c55e','#f59e0b','#60a5fa','#c084fc'] }] },
+      options: { ...chartDefaults }
+    });
+  }
+
+  // Success rate
+  if (successChart) successChart.destroy();
+  const sCtx = document.getElementById('success-chart');
+  if (sCtx) {
+    successChart = new Chart(sCtx, {
+      type: 'line',
+      data: { labels: cd.labels || [], datasets: [{ label: 'Success Rate %', data: cd.success_rates || [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.4 }] },
+      options: { ...chartDefaults, scales: { x: { ticks: { color: '#6b7280' } }, y: { min: 0, max: 100, ticks: { color: '#6b7280', callback: v => v + '%' } } } }
+    });
+  }
+}
+
+// ─── TABS ─────────────────────────────────────────────
+function showTab(name) {
+  ['payments','dashboard','reconcile','products'].forEach(t => {
+    document.getElementById(`tab-content-${t}`).classList.add('hidden');
+    document.getElementById(`tab-${t}`).className = document.getElementById(`tab-${t}`).className
+      .replace('tab-active','tab-inactive');
+  });
+  document.getElementById(`tab-content-${name}`).classList.remove('hidden');
+  document.getElementById(`tab-${name}`).className = document.getElementById(`tab-${name}`).className
+    .replace('tab-inactive','tab-active');
+}
+
+// ─── ACTIONS ──────────────────────────────────────────
+async function runAgent() {
+  const btn = document.querySelector('button[onclick="runAgent()"]');
+  if (btn) { btn.textContent = '⏳ Running...'; btn.disabled = true; }
+  await fetch(`/api/run-agent/${activePersonaId}`, {method:'POST'});
+  await loadDashboard(activePersonaId);
+  flashFeed();
+  if (btn) { btn.textContent = '⚡ Run Agent Now'; btn.disabled = false; }
+}
+
+async function retryPayment(id) {
+  await fetch(`/api/retry/${id}`, {method:'POST'});
+  await loadDashboard(activePersonaId);
+  flashFeed();
+}
+
+async function refundPayment(id) {
+  await fetch(`/api/refund/${id}`, {method:'POST'});
+  await loadDashboard(activePersonaId);
+}
+
+async function runReconciliation() {
+  const btn = document.querySelector('button[onclick="runReconciliation()"]');
+  if (btn) { btn.textContent = '⏳ Reconciling...'; btn.disabled = true; }
+  const res  = await fetch(`/api/reconcile/${activePersonaId}`, {method:'POST'});
+  const data = await res.json();
+
+  const container = document.getElementById('recon-results');
+  container.innerHTML = `
+    <div class="grid grid-cols-3 gap-3 mb-3">
+      <div class="bg-green-900/20 border border-green-700/50 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-green-400">${data.matched || 0}</div>
+        <div class="text-xs text-gray-400">✅ Matched</div>
+      </div>
+      <div class="bg-red-900/20 border border-red-700/50 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-red-400">${data.mismatched || 0}</div>
+        <div class="text-xs text-gray-400">⚠️ Mismatched</div>
+      </div>
+      <div class="bg-indigo-900/20 border border-indigo-700/50 rounded-lg p-3 text-center">
+        <div class="text-lg font-bold text-indigo-400">₹${(data.total_settled || 0).toLocaleString('en-IN')}</div>
+        <div class="text-xs text-gray-400">💰 Settled</div>
+      </div>
+    </div>
+    ${(data.disputes || []).map(d => `
+      <div class="bg-red-900/20 border border-red-700/50 rounded-lg p-3">
+        <div class="text-sm font-semibold text-red-400">⚠️ Mismatch Detected — Dispute Auto-Raised</div>
+        <div class="text-xs text-gray-400 mt-1">Expected: ₹${d.expected?.toFixed(2)} | Settled: ₹${d.settled?.toFixed(2)} | Diff: ₹${d.diff?.toFixed(2)}</div>
+        <div class="text-xs text-yellow-400 mt-1 font-mono">Pine Labs Ref: ${d.pine_ref}</div>
+      </div>`).join('')}
+    ${data.mismatched === 0 ? '<div class="text-green-400 text-sm bg-green-900/20 border border-green-700/50 rounded-lg p-3">✅ All transactions matched perfectly! No disputes needed.</div>' : ''}`;
+
+  const anomalies = data.anomalies || [];
+  document.getElementById('anomaly-results').innerHTML = anomalies.length
+    ? anomalies.map(a => `<div class="bg-gray-800/50 rounded-lg p-3 text-xs">${a.message}</div>`).join('')
+    : '<div class="text-green-400 text-xs">✅ No anomalies detected — all patterns normal</div>';
+
+  if (btn) { btn.textContent = '▶ Run Reconciliation'; btn.disabled = false; }
+  showTab('reconcile');
+  await loadDashboard(activePersonaId);
+}
+
+async function runAnalytics() {
+  const q   = document.getElementById('analytics-query').value || 'Give me a summary of my business';
+  const el  = document.getElementById('analytics-insight');
+  el.classList.remove('hidden');
+  el.textContent = '🤖 Gemini 2.5 Flash analyzing...';
+  const res  = await fetch(`/api/analytics/${activePersonaId}?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  el.textContent = data.insight || 'No insight available';
+}
+
+async function toggleAuto(productId) {
+  await fetch(`/api/toggle-auto/${productId}`, {method:'POST'});
+  await loadDashboard(activePersonaId);
+}
+
+async function triggerSpike(productId) {
+  const res  = await fetch(`/api/simulate-spike/${productId}`);
+  const data = await res.json();
+  alert(`💥 Price Spike!\n${data.product}\nNormal: ₹${data.normal_price} → Spiked: ₹${data.spiked_price}\n${data.is_spike ? `✅ Agent BLOCKED purchase! Saved ₹${data.savings}` : 'Price within limits — purchase allowed'}`);
+  await loadDashboard(activePersonaId);
+}
+
+async function triggerSpikeDemo() {
+  const products = dashboardData.products || [];
+  if (products.length) await triggerSpike(products[0].id);
+}
+
+async function triggerRetryDemo() {
+  const failedTxn = (dashboardData.transactions || []).find(t => t.status === 'failed');
+  if (failedTxn) {
+    await retryPayment(failedTxn.id);
+    alert(`🔄 Retry Demo!\nSwitching payment method...\nCheck transactions for updated status!`);
+  } else {
+    await runAgent();
+    alert('⚡ Agent ran! Check transactions for any retry scenarios.');
+  }
+}
+
+async function resetDemo() {
+  if (!confirm('Reset all demo data? This will clear transactions, chat, and logs.')) return;
+  await fetch('/api/reset-demo', {method:'POST'});
+  await loadPersonas();
+  await loadDashboard(activePersonaId);
+  alert('✅ Demo reset! Fresh start ready.');
+}
+
+// ─── VOICE ────────────────────────────────────────────
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input requires Chrome or Edge browser'); return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = false;
+
+  document.getElementById('voice-status').classList.remove('hidden');
+  document.getElementById('voice-btn').textContent = '🔴';
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('chat-input').value = transcript;
+    document.getElementById('voice-status').classList.add('hidden');
+    document.getElementById('voice-btn').textContent = '🎤';
+    setTimeout(sendMessage, 800);
+  };
+
+  recognition.onerror = () => {
+    document.getElementById('voice-status').classList.add('hidden');
+    document.getElementById('voice-btn').textContent = '🎤';
+  };
+
+  recognition.start();
+}
+
+// ─── AUTO REFRESH ─────────────────────────────────────
+async function autoRefresh() {
+  const prevLogCount = (dashboardData.agent_logs || []).length;
+  await loadDashboard(activePersonaId);
+  if ((dashboardData.agent_logs || []).length > prevLogCount) flashFeed();
+}
+
+function flashFeed() {
+  const el = document.getElementById('agent-feed-card');
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 500);
+}
+
+// ─── START ────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
